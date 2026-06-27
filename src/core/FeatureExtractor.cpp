@@ -9,6 +9,7 @@ FeatureExtractor::FeatureExtractor(int windowSize)
       m_rms(0.0f),
       m_spectralCentroid(0.0f),
       m_isOnset(false),
+      m_onsetPending(false),
       m_onsetThreshold(Config::kOnsetThreshold),
       m_sensitivity(Config::kSensitivity),
       m_attackCoef(Config::kAttackCoef),
@@ -20,6 +21,7 @@ FeatureExtractor::FeatureExtractor(int windowSize)
     m_fftSize = (m_windowSize / 2) + 1;
     m_bands.resize(6, 0.0f);
     m_prevMagnitudes.resize(m_fftSize, 0.0f);
+    m_wasAboveThreshold = false;
 
     // Maxima start at 1.0 only to avoid a divide-by-zero on the first frame;
     // they are recalibrated immediately on real data (see m_firstFrame).
@@ -180,9 +182,20 @@ float FeatureExtractor::calculateCentroid(const std::vector<float>& fftMagnitude
     return std::min(m_smoothedCentroid / m_centroidMax, 1.0f);
 }
 
-// Onset: normalized spectral flux above threshold (disabled in silence).
+// Onset: normalized spectral flux through a Schmitt trigger (disabled in
+// silence). Fires when the flux rises past kOnsetThreshold, then stays LATCHED
+// (no further onset) until the flux falls back below the lower kOnsetThresholdLow.
+// A single real hit's flux wobbles around the threshold for several frames as it
+// rises and decays: a single-threshold rising edge re-fires on every wobble,
+// which reads as flicker. The hysteresis gap absorbs that. Two hits still
+// register separately as long as the flux genuinely dips below the low threshold
+// between them, however close in time (e.g. a fast drum roll) -- it is a value
+// gate, not a minimum time between onsets.
 void FeatureExtractor::detectOnset(const std::vector<float>& fftMagnitudes) {
-    if (m_isSilent) { m_isOnset = false; return; }
+    // m_rms (already computed this call, see extractFeatures) must show real
+    // loudness, not just "not silent": filters out the noisy low-energy decay
+    // tail of a hit, where the flux ratio is unreliable (see Config::kOnsetMinRms).
+    if (m_isSilent || m_rms < Config::kOnsetMinRms) { m_isOnset = false; m_wasAboveThreshold = false; return; }
 
     float spectralFlux = 0.0f;
     float totalMagnitude = 0.0f;
@@ -193,8 +206,23 @@ void FeatureExtractor::detectOnset(const std::vector<float>& fftMagnitudes) {
         totalMagnitude += fftMagnitudes[i];
     }
 
-    if (totalMagnitude < 0.0001f) { m_isOnset = false; return; }
+    if (totalMagnitude < 0.0001f) { m_isOnset = false; m_wasAboveThreshold = false; return; }
 
-    // Normalized by total energy: threshold independent of volume.
-    m_isOnset = (spectralFlux / totalMagnitude) > m_onsetThreshold;
+    // Normalized by total energy: thresholds independent of volume.
+    float flux = spectralFlux / totalMagnitude;
+    if (!m_wasAboveThreshold) {
+        // Armed: fire the moment the flux crosses the high threshold.
+        m_isOnset = flux > m_onsetThreshold;
+        // Latch it so the render thread cannot miss this single-frame hit.
+        if (m_isOnset) { m_wasAboveThreshold = true; m_onsetPending = true; }
+    } else {
+        // Latched after a hit: re-arm only once the flux drops below the low
+        // threshold, so wobble around the high threshold does not re-fire.
+        m_isOnset = false;
+        if (flux < Config::kOnsetThresholdLow) m_wasAboveThreshold = false;
+    }
+
+    // Optional live trace to tune the thresholds on real hits (see Config).
+    if (Config::kOnsetDebug && flux > Config::kOnsetThresholdLow)
+        std::cout << "[ONSET] flux=" << flux << (m_isOnset ? "  -> COLPO" : "") << std::endl;
 }

@@ -30,7 +30,18 @@ public:
     float getRms() const { std::lock_guard<std::mutex> lock(m_mutex); return m_rms; }
     std::vector<float> getBands() const { std::lock_guard<std::mutex> lock(m_mutex); return m_bands; }
     float getSpectralCentroid() const { std::lock_guard<std::mutex> lock(m_mutex); return m_spectralCentroid; }
-    bool isOnset() const { std::lock_guard<std::mutex> lock(m_mutex); return m_isOnset; }
+
+    // Consuming read: returns true if an onset fired since the last call, then
+    // clears the latch. The audio thread (~86 fps) only ever SETS the latch on a
+    // hit; the render thread (~60 fps) clears it here. A plain instantaneous flag
+    // would be missed whenever a hit's single audio frame falls between two
+    // render reads -- this guarantees every hit is delivered exactly once.
+    bool isOnset() const {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        bool pending = m_onsetPending;
+        m_onsetPending = false;
+        return pending;
+    }
 
 private:
     // All three share the same pipeline: silence gate -> attack/release
@@ -50,9 +61,19 @@ private:
     float m_rms;
     std::vector<float> m_bands;
     float m_spectralCentroid; // 0-1, for the presets
-    bool m_isOnset;
+    bool m_isOnset;           // instantaneous: this audio frame is a hit
+
+    // Sticky onset latch: set by the audio thread on a hit, cleared by the render
+    // thread in isOnset(). Bridges the producer/consumer rate mismatch so no hit
+    // is lost between render reads. mutable: cleared inside the const getter.
+    mutable bool m_onsetPending;
 
     std::vector<float> m_prevMagnitudes; // previous frame spectrum, for onset
+
+    // Schmitt-trigger latch: true once an onset has fired, staying latched until
+    // the flux falls below kOnsetThresholdLow. Suppresses repeat fires from a
+    // single hit whose flux wobbles around the threshold (see detectOnset).
+    bool m_wasAboveThreshold;
 
     // Tuning constants, copied from Config.h in the constructor.
     float m_onsetThreshold;

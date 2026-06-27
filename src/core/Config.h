@@ -19,10 +19,38 @@ namespace Config {
     inline constexpr int kWindowWidth = 1280;
     inline constexpr int kWindowHeight = 720;
 
-    // --- FeatureExtractor: fixed tuning ---
-    // Threshold on the normalized flux (0-1): 0.15 = "15% new energy vs the
-    // previous frame". Higher = less sensitive onset.
-    inline constexpr float kOnsetThreshold = 0.15f;
+    // --- FeatureExtractor: onset (spectral flux) ---
+    // Threshold on the normalized flux (0-1): 0.30 = "30% new energy vs the
+    // previous frame". Higher = less sensitive onset. Percussive genres (sharp
+    // drum hits against a near-silent background) can work with a low value;
+    // continuously-textured music (synths, sustained chords, vocals) has a
+    // higher "musical background" flux even with no real hit, so it needs a
+    // higher bar to avoid triggering on ordinary timbral movement.
+    inline constexpr float kOnsetThreshold = 0.30f;
+
+    // Hysteresis (Schmitt-trigger) lower threshold: after an onset fires at
+    // kOnsetThreshold, no new onset is allowed until the flux drops back BELOW
+    // this. The gap (kOnsetThreshold - this) must be WIDE enough to swallow the
+    // dip WITHIN one hit: a real hit is attack + body/resonance (e.g. snare
+    // wires), so its flux has two close peaks with a shallow dip between -- too
+    // narrow a gap re-arms on that dip and fires the same hit twice. A genuinely
+    // separate hit still drops the flux near 0, well below this, so close hits (a
+    // drum roll) are NOT lost: this is a value gate, not a time cooldown.
+    inline constexpr float kOnsetThresholdLow = 0.14f;
+
+    // Minimum normalized RMS (0-1, same scale as getRms()) required for a
+    // frame to even be considered for onset. The flux RATIO is noise-sensitive
+    // at low absolute energy: during a hit's decay tail, totalMagnitude is
+    // small, so ordinary bin-level noise becomes a large fraction of it and
+    // repeatedly crosses kOnsetThreshold, firing several false onsets from the
+    // tail of a single real hit. Requiring real loudness right now (not just
+    // "not silent") filters that out without touching the flux formula itself.
+    inline constexpr float kOnsetMinRms = 0.25f;
+
+    // Debug only: when true, detectOnset prints the live flux ratio (while above
+    // kOnsetThresholdLow) and marks the frames that fire, so the thresholds can
+    // be set from real numbers instead of by ear. Leave false in normal use.
+    inline constexpr bool kOnsetDebug = false;
 
     // Response curve shape (inside the tanh): lower = more dynamic range,
     // higher = snappier. Does not change the ceiling (1.0).
