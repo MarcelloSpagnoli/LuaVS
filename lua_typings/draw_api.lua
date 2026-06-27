@@ -291,10 +291,6 @@ function drawLine3D(x1, y1, z1, x2, y2, z2, r, g, b, a) end
 ---@param spacing number size of each cell
 function drawGrid(slices, spacing) end
 
--- ===========================================================================
--- Preset contract (see src/core/LuaEngine.h)
--- ===========================================================================
-
 ---@class Preset
 ---@field init fun()
 --- bands: 6 values 0.0-1.0 (1.0 = the band is at its recent maximum, see

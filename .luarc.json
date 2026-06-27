@@ -1,8 +1,5 @@
 {
   "runtime.version": "LuaJIT",
-  "workspace.library": [
-    "lua_typings"
-  ],
   "diagnostics.disable": [
     "lowercase-global"
   ]
