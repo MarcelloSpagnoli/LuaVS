@@ -1,0 +1,16 @@
+# Build directory (raylib is fetched here, plus all object files)
+/build/
+
+# Compiled binaries (CMake outputs them to the project root)
+/LuaVS
+/test_scan
+/test_fft
+/mcp3008_test
+/test_engine
+
+# Thesis document (kept out of the public repo)
+/tesi.pdf
+
+# Editor / OS
+/.vscode/
+.DS_Store
