@@ -1,4 +1,4 @@
----@meta
+---@diagnostic disable: lowercase-global
 
 --[[
 Type stubs for LuaLS (Lua Language Server) — this file is NEVER executed by the
