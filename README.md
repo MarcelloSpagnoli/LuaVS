@@ -40,7 +40,7 @@ sudo reboot
 
 ## Presets
 
-Lua files in `assets/presets/`. Each defines `preset.render(rms, centroid, onset,
+Lua example files in `assets/presets/`. Each defines `preset.render(rms, centroid, onset,
 bands, dt, knobs, W, H)` and draws with the functions exposed by raylib. Drop a
 `.lua` there and it is immediately selectable with the buttons (no C++ changes).
 
