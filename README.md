@@ -56,8 +56,7 @@ bands, dt, knobs, W, H)` and draws with the functions exposed by raylib. Drop a
 | ![radial_bands](images/radial_bands.png) | ![cubes_3d](images/cubes_3d.png) |
 
 ## Demo
-[![Demo](thumbnail.png)]([https://youtube.com/watch?v=...](https://youtu.be/XbHCzb2h0To))
-
+[![Demo](thumbnail.png)](https://youtu.be/XbHCzb2h0To)
 
 
 
