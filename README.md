@@ -1,4 +1,4 @@
-<img width="96" height="96" alt="9521A4B2" src="https://github.com/user-attachments/assets/4edb9011-9d14-4103-8e3e-fe90bb2605c9" /># LuaVS
+# LuaVS
 
 Audio-reactive visualizer for the Raspberry Pi. It captures audio, extracts
 features (volume, frequency bands, spectral centroid, onset) and feeds them to
